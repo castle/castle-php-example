@@ -51,6 +51,14 @@ Install the PHP dependencies, including the Castle PHP SDK:
 composer install
 ```
 
+> **Note:** until the SDK additions are released to Packagist, `composer.json`
+> pulls `castle/castle-php` from the `feat/lists-privacy-webhooks` branch via a
+> VCS repository. If Composer hits a GitHub API rate limit while resolving it,
+> add a token: `composer config --global github-oauth.github.com <token>`
+> (or `gh auth token`). After the SDK is released, switch the requirement to a
+> tagged version (e.g. `"castle/castle-php": "^3.3"`) and drop the
+> `repositories` block.
+
 The Castle browser SDK is served at runtime straight from `node_modules`, so
 install the npm dependencies too:
 
