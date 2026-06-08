@@ -16,7 +16,7 @@
     "php": ">=7.4",
     "ext-curl": "*",
     "ext-json": "*",
-    "castle/castle-php": "dev-feat/lists-privacy-webhooks"
+    "castle/castle-php": "dev-feat/php-namespaces"
   },
   "require-dev": {
     "phpunit/phpunit": "^9.6"
