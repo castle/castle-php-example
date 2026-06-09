@@ -1,0 +1,33 @@
+{
+  "name": "castle/castle-php-example",
+  "description": "A small PHP app demonstrating key Castle workflows (sign up, login, account, password reset, lists, privacy, webhooks) on top of the Castle PHP SDK.",
+  "type": "project",
+  "license": "MIT",
+  "homepage": "https://github.com/castle/castle-php-example",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/castle/castle-php"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "castle/castle-php": "dev-feat/php-namespaces"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.6"
+  },
+  "autoload": {
+    "files": [
+      "src/helpers.php"
+    ]
+  },
+  "scripts": {
+    "start": "php -S 0.0.0.0:4008 router.php",
+    "test": "phpunit"
+  }
+}
