@@ -9,11 +9,11 @@ function demos(): array
     return [
         'signup' => [
             'friendly_name' => 'sign up',
-            'blurb' => 'Evaluate a registration ($registration) with the risk endpoint.',
+            'blurb' => 'Filter a registration ($registration) before the account exists.',
         ],
         'login' => [
             'friendly_name' => 'login',
-            'blurb' => 'Evaluate a login with the risk and filter endpoints.',
+            'blurb' => 'Filter the attempt, then assess a successful login with Risk.',
             'wsd' => 'https://www.websequencediagrams.com/files/render?link=Q9WYp8rNThVZhA1inf2FSLfjChYZTdHXyGB9zqvMNpsaAvKvJPARgo5LI5fM5K4D',
         ],
         'account' => [
@@ -56,46 +56,52 @@ function valid_urls(): array
 // ---------------------------------------------------------------------------
 // Event flows (pure: decide which endpoint/payload, no network calls)
 //
-// Each returns ['api_endpoint', 'castle_type', 'castle_status', 'payload'].
+// Single-call flows return ['api_endpoint', 'castle_type', 'castle_status',
+// 'payload']. The login flow returns ['steps' => [ <decision>, ... ]] because
+// it reuses one request token across a Filter + Risk sequence.
 // ---------------------------------------------------------------------------
 
+// A registration is evaluated before the account exists, so it is anonymous
+// activity and always goes to the Filter API with the submitted form params
+// (email/phone only). A brand-new email is an attempt; an email that already
+// belongs to a user is a failed registration, resolved via matching_user_id.
 function decide_signup(array $input, array $cfg): array
 {
-    $name = $input['name'] ?? null;
     $email = $input['email'] ?? '';
     $requestToken = $input['request_token'] ?? '';
 
     $type = '$registration';
 
-    // An email that's already taken (the known demo user) is a failed
-    // registration and goes to /filter; a fresh sign-up is risk-assessed.
     if ($email === $cfg['valid_username']) {
         $status = '$failed';
-        $endpoint = 'filter';
+        $payload = [
+            'type' => $type,
+            'status' => $status,
+            'params' => ['email' => $email],
+            'matching_user_id' => $cfg['valid_user_id'],
+            'request_token' => $requestToken,
+        ];
     } else {
-        $status = '$succeeded';
-        $endpoint = 'risk';
+        $status = '$attempted';
+        $payload = [
+            'type' => $type,
+            'status' => $status,
+            'params' => ['email' => $email],
+            'request_token' => $requestToken,
+        ];
     }
 
-    $payload = [
-        'type' => $type,
-        'status' => $status,
-        'user' => [
-            'id' => $cfg['valid_user_id'],
-            'email' => $email,
-            'name' => $name,
-        ],
-        'request_token' => $requestToken,
-    ];
-
     return [
-        'api_endpoint' => $endpoint,
+        'api_endpoint' => 'filter',
         'castle_type' => $type,
         'castle_status' => $status,
         'payload' => $payload,
     ];
 }
 
+// A login reuses a single request token across two calls: first Filter the
+// attempt while the visitor is still anonymous, then — on success — assess the
+// authenticated user with Risk. A failed attempt stays on Filter.
 function decide_login(array $input, array $cfg): array
 {
     $email = $input['email'] ?? '';
@@ -103,42 +109,57 @@ function decide_login(array $input, array $cfg): array
     $requestToken = $input['request_token'] ?? '';
 
     $type = '$login';
-    $registeredAt = $cfg['registered_at'];
 
-    if ($email === $cfg['valid_username']) {
-        $userId = $cfg['valid_user_id'];
-        if ($password === $cfg['valid_password']) {
-            $status = '$succeeded';
-            $endpoint = 'risk';
-        } else {
-            $status = '$failed';
-            $endpoint = 'filter';
-        }
-    } else {
-        $endpoint = 'filter';
-        $status = '$failed';
-        $userId = null;
-        $registeredAt = null;
-    }
-
-    $user = ['id' => $userId, 'email' => $email];
-    if ($registeredAt) {
-        $user['registered_at'] = $registeredAt;
-    }
-
-    $payload = [
-        'type' => $type,
-        'status' => $status,
-        'user' => $user,
-        'request_token' => $requestToken,
-    ];
-
-    return [
-        'api_endpoint' => $endpoint,
+    // Step 1 — always filter the attempt up front (anonymous -> params).
+    $steps = [[
+        'api_endpoint' => 'filter',
         'castle_type' => $type,
-        'castle_status' => $status,
-        'payload' => $payload,
-    ];
+        'castle_status' => '$attempted',
+        'payload' => [
+            'type' => $type,
+            'status' => '$attempted',
+            'params' => ['email' => $email],
+            'request_token' => $requestToken,
+        ],
+    ]];
+
+    // Step 2 — the outcome, on the same request token.
+    if ($email === $cfg['valid_username'] && $password === $cfg['valid_password']) {
+        $steps[] = [
+            'api_endpoint' => 'risk',
+            'castle_type' => $type,
+            'castle_status' => '$succeeded',
+            'payload' => [
+                'type' => $type,
+                'status' => '$succeeded',
+                'user' => [
+                    'id' => $cfg['valid_user_id'],
+                    'email' => $email,
+                    'registered_at' => $cfg['registered_at'],
+                ],
+                'request_token' => $requestToken,
+            ],
+        ];
+    } else {
+        $payload = [
+            'type' => $type,
+            'status' => '$failed',
+            'params' => ['email' => $email],
+            'request_token' => $requestToken,
+        ];
+        // A known email with a wrong password resolves to the existing user.
+        if ($email === $cfg['valid_username']) {
+            $payload['matching_user_id'] = $cfg['valid_user_id'];
+        }
+        $steps[] = [
+            'api_endpoint' => 'filter',
+            'castle_type' => $type,
+            'castle_status' => '$failed',
+            'payload' => $payload,
+        ];
+    }
+
+    return ['steps' => $steps];
 }
 
 function decide_profile_update(array $input, array $cfg): array

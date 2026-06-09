@@ -86,7 +86,7 @@ function dispatch_post(string $uri): void
             respond_event(decide_signup(read_json_body(), flow_cfg()));
             return;
         case '/evaluate_login':
-            respond_event(decide_login(read_json_body(), flow_cfg()));
+            respond_login(decide_login(read_json_body(), flow_cfg()));
             return;
         case '/evaluate_profile_update':
             respond_event(decide_profile_update(read_json_body(), flow_cfg()));
@@ -132,6 +132,24 @@ function respond_event(array $decision): void
     }
 
     send_json($response);
+}
+
+// The login flow runs an ordered sequence (Filter the attempt, then Risk or
+// Filter the outcome) on one request token, returning a result per step.
+function respond_login(array $decision): void
+{
+    $steps = [];
+    foreach ($decision['steps'] as $step) {
+        $steps[] = [
+            'api_endpoint' => $step['api_endpoint'],
+            'payload_to_castle' => $step['payload'],
+            'castle_type' => $step['castle_type'],
+            'castle_status' => $step['castle_status'],
+            'result' => run_event_flow($step),
+        ];
+    }
+
+    send_json(['steps' => $steps]);
 }
 
 function respond_password_reset(array $decision): void

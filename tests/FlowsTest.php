@@ -19,7 +19,7 @@ class FlowsTest extends TestCase
 
     // -- sign up -----------------------------------------------------------
 
-    public function testSignupNewEmailIsRiskAssessed(): void
+    public function testSignupNewEmailFiltersAsAttempted(): void
     {
         $decision = decide_signup([
             'name' => 'Lois Lane',
@@ -27,14 +27,15 @@ class FlowsTest extends TestCase
             'request_token' => 'tok-1',
         ], $this->cfg());
 
-        $this->assertSame('risk', $decision['api_endpoint']);
+        $this->assertSame('filter', $decision['api_endpoint']);
         $this->assertSame('$registration', $decision['castle_type']);
-        $this->assertSame('$succeeded', $decision['castle_status']);
-        $this->assertSame('lois.lane@dailyplanet.com', $decision['payload']['user']['email']);
-        $this->assertSame('Lois Lane', $decision['payload']['user']['name']);
+        $this->assertSame('$attempted', $decision['castle_status']);
+        $this->assertSame('lois.lane@dailyplanet.com', $decision['payload']['params']['email']);
+        $this->assertArrayNotHasKey('user', $decision['payload']);
+        $this->assertArrayNotHasKey('matching_user_id', $decision['payload']);
     }
 
-    public function testSignupExistingEmailGoesToFilter(): void
+    public function testSignupExistingEmailFiltersAsFailed(): void
     {
         $decision = decide_signup([
             'name' => 'Clark Kent',
@@ -44,11 +45,13 @@ class FlowsTest extends TestCase
 
         $this->assertSame('filter', $decision['api_endpoint']);
         $this->assertSame('$failed', $decision['castle_status']);
+        $this->assertSame('clark.kent@dailyplanet.com', $decision['payload']['params']['email']);
+        $this->assertSame('00000000', $decision['payload']['matching_user_id']);
     }
 
     // -- login -------------------------------------------------------------
 
-    public function testLoginValidCredentialsCallRisk(): void
+    public function testLoginAlwaysFiltersTheAttemptFirst(): void
     {
         $decision = decide_login([
             'email' => 'clark.kent@dailyplanet.com',
@@ -56,16 +59,32 @@ class FlowsTest extends TestCase
             'request_token' => 'tok-123',
         ], $this->cfg());
 
-        $this->assertSame('risk', $decision['api_endpoint']);
-        $this->assertSame('$login', $decision['castle_type']);
-        $this->assertSame('$succeeded', $decision['castle_status']);
-        $this->assertSame('00000000', $decision['payload']['user']['id']);
-        $this->assertSame('clark.kent@dailyplanet.com', $decision['payload']['user']['email']);
-        $this->assertArrayHasKey('registered_at', $decision['payload']['user']);
-        $this->assertSame('tok-123', $decision['payload']['request_token']);
+        $first = $decision['steps'][0];
+        $this->assertSame('filter', $first['api_endpoint']);
+        $this->assertSame('$login', $first['castle_type']);
+        $this->assertSame('$attempted', $first['castle_status']);
+        $this->assertSame('clark.kent@dailyplanet.com', $first['payload']['params']['email']);
+        $this->assertSame('tok-123', $first['payload']['request_token']);
     }
 
-    public function testLoginValidUserWrongPasswordCallsFilter(): void
+    public function testLoginValidCredentialsRiskAssessSuccess(): void
+    {
+        $decision = decide_login([
+            'email' => 'clark.kent@dailyplanet.com',
+            'password' => 'supersecret',
+            'request_token' => 'tok-123',
+        ], $this->cfg());
+
+        $second = $decision['steps'][1];
+        $this->assertSame('risk', $second['api_endpoint']);
+        $this->assertSame('$succeeded', $second['castle_status']);
+        $this->assertSame('00000000', $second['payload']['user']['id']);
+        $this->assertSame('clark.kent@dailyplanet.com', $second['payload']['user']['email']);
+        $this->assertArrayHasKey('registered_at', $second['payload']['user']);
+        $this->assertSame('tok-123', $second['payload']['request_token']);
+    }
+
+    public function testLoginWrongPasswordFiltersFailedWithMatchingUser(): void
     {
         $decision = decide_login([
             'email' => 'clark.kent@dailyplanet.com',
@@ -73,13 +92,14 @@ class FlowsTest extends TestCase
             'request_token' => 'tok-456',
         ], $this->cfg());
 
-        $this->assertSame('filter', $decision['api_endpoint']);
-        $this->assertSame('$failed', $decision['castle_status']);
-        $this->assertSame('00000000', $decision['payload']['user']['id']);
-        $this->assertArrayHasKey('registered_at', $decision['payload']['user']);
+        $second = $decision['steps'][1];
+        $this->assertSame('filter', $second['api_endpoint']);
+        $this->assertSame('$failed', $second['castle_status']);
+        $this->assertSame('clark.kent@dailyplanet.com', $second['payload']['params']['email']);
+        $this->assertSame('00000000', $second['payload']['matching_user_id']);
     }
 
-    public function testLoginUnknownUserCallsFilterWithoutUserId(): void
+    public function testLoginUnknownUserFiltersFailedWithoutMatchingUser(): void
     {
         $decision = decide_login([
             'email' => 'stranger@example.com',
@@ -87,9 +107,11 @@ class FlowsTest extends TestCase
             'request_token' => 'tok-789',
         ], $this->cfg());
 
-        $this->assertSame('filter', $decision['api_endpoint']);
-        $this->assertNull($decision['payload']['user']['id']);
-        $this->assertArrayNotHasKey('registered_at', $decision['payload']['user']);
+        $second = $decision['steps'][1];
+        $this->assertSame('filter', $second['api_endpoint']);
+        $this->assertSame('$failed', $second['castle_status']);
+        $this->assertSame('stranger@example.com', $second['payload']['params']['email']);
+        $this->assertArrayNotHasKey('matching_user_id', $second['payload']);
     }
 
     // -- profile update ----------------------------------------------------
