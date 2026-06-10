@@ -61,11 +61,9 @@ function castle_configure(): void
 {
     Castle::setApiKey(env('castle_api_secret'));
 
-    // Set connection / request timeouts (milliseconds).
-    Castle::setCurlOpts([
-        CURLOPT_CONNECTTIMEOUT_MS => 3000,
-        CURLOPT_TIMEOUT_MS => 5000,
-    ]);
+    // Set the request timeout in milliseconds (applies to both the connection
+    // and the transfer).
+    Castle::setRequestTimeout(5000);
 }
 
 // ---------------------------------------------------------------------------
