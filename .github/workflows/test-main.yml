@@ -1,0 +1,40 @@
+name: Test against SDK main
+
+# Exercises the example app against the unreleased Castle PHP SDK (main
+# branch). This is the permanent test/sdk-main branch: every push to it runs
+# the suite against the latest main. Nightly/manual runs require this file to
+# also live on the default branch (GitHub only honours schedule/workflow_dispatch
+# from the default branch).
+on:
+  push:
+    branches: [test/sdk-main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: curl, json
+          tools: composer
+
+      - name: Point the app at the SDK main branch
+        run: ./scripts/set-sdk-version.sh main
+
+      - name: Install dependencies
+        run: composer update castle/castle-php --no-interaction --no-progress
+
+      - name: Lint sources
+        run: |
+          find . -path ./vendor -prune -o -name '*.php' -print | xargs -n1 -P4 php -l
+
+      - name: Run tests
+        run: composer test
