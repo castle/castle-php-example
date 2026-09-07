@@ -202,23 +202,15 @@ function project_root(): string
     return dirname(__DIR__);
 }
 
-// 2.x ships castle.browser.js; 3.x ships castle.umd.js. The HTML always requests castle.umd.js.
 function resolve_castle_js(string $filename): ?string
 {
-    $aliases = [
-        'castle.umd.js' => ['castle.umd.js', 'castle.browser.js'],
-        'castle.browser.js' => ['castle.browser.js', 'castle.umd.js'],
-    ];
-    $names = $aliases[$filename] ?? [$filename];
     $dir = realpath(project_root() . '/node_modules/@castleio/castle-js/dist');
     if ($dir === false) {
         return null;
     }
-    foreach ($names as $name) {
-        $path = realpath($dir . '/' . $name);
-        if ($path !== false && str_starts_with($path, $dir . DIRECTORY_SEPARATOR) && is_file($path)) {
-            return $path;
-        }
+    $path = realpath($dir . '/' . $filename);
+    if ($path !== false && str_starts_with($path, $dir . DIRECTORY_SEPARATOR) && is_file($path)) {
+        return $path;
     }
     return null;
 }
