@@ -202,14 +202,31 @@ function project_root(): string
     return dirname(__DIR__);
 }
 
-// Serve the Castle browser SDK straight from the npm install (node_modules)
-// instead of vendoring it into the repo.
+// 2.x ships castle.browser.js; 3.x ships castle.umd.js. The HTML always requests castle.umd.js.
+function resolve_castle_js(string $filename): ?string
+{
+    $aliases = [
+        'castle.umd.js' => ['castle.umd.js', 'castle.browser.js'],
+        'castle.browser.js' => ['castle.browser.js', 'castle.umd.js'],
+    ];
+    $names = $aliases[$filename] ?? [$filename];
+    $dir = realpath(project_root() . '/node_modules/@castleio/castle-js/dist');
+    if ($dir === false) {
+        return null;
+    }
+    foreach ($names as $name) {
+        $path = realpath($dir . '/' . $name);
+        if ($path !== false && str_starts_with($path, $dir . DIRECTORY_SEPARATOR) && is_file($path)) {
+            return $path;
+        }
+    }
+    return null;
+}
+
 function serve_castle_js(string $filename): void
 {
-    $dir = project_root() . '/node_modules/@castleio/castle-js/dist';
-    $path = realpath($dir . '/' . $filename);
-
-    if ($path === false || strpos($path, realpath($dir) ?: $dir) !== 0 || !is_file($path)) {
+    $path = resolve_castle_js($filename);
+    if ($path === null) {
         http_response_code(404);
         echo 'Not found';
         return;

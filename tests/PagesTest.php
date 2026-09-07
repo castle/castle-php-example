@@ -9,6 +9,14 @@ class PagesTest extends TestCase
         $html = render_page('home', default_params());
         $this->assertStringContainsStringIgnoringCase('<html', $html);
         $this->assertStringContainsString('Castle workflows demo', $html);
+        $this->assertStringContainsString('/vendor/castle-js/castle.umd.js', $html);
+    }
+
+    public function testResolveCastleJsServesNpmInstall(): void
+    {
+        $path = resolve_castle_js('castle.umd.js');
+        $this->assertNotNull($path);
+        $this->assertFileExists($path);
     }
 
     /**
