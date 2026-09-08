@@ -51,8 +51,8 @@ Install the PHP dependencies, including the Castle PHP SDK:
 composer install
 ```
 
-> **Note:** `composer.json` requires the released `castle/castle-php` `^4.0`,
-> resolved from the SDK's Git tags via a VCS repository. Once `4.0` is available
+> **Note:** `composer.json` requires the released `castle/castle-php` `^4.1.1`,
+> resolved from the SDK's Git tags via a VCS repository. Once `4.1` is available
 > on Packagist, the `repositories` block can be dropped. If Composer hits a
 > GitHub API rate limit while resolving it, add a token:
 > `composer config --global github-oauth.github.com <token>` (or `gh auth token`).
