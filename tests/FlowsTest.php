@@ -156,7 +156,7 @@ class FlowsTest extends TestCase
         ], $this->cfg());
 
         $this->assertSame('log', $decision['api_endpoint']);
-        $this->assertSame('$password_reset', $decision['castle_type']);
+        $this->assertSame('$profile_reset', $decision['castle_type']);
         $this->assertSame('$succeeded', $decision['castle_status']);
         $this->assertSame('clark.kent@dailyplanet.com', $decision['payload']['user']['email']);
     }
