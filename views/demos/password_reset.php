@@ -17,7 +17,7 @@ HTML;
 
 $desc = <<<HTML
 <p>This demo records the password-reset event with the non-blocking <code>/log</code> endpoint, which stores the event without returning a verdict.</p>
-<p>Assume the user already passed your reset challenge (e.g. an emailed OTP). Enter a value <em>different from</em> the valid password to send <code>\$password_reset / \$succeeded</code>, or the valid password to send <code>\$password_reset / \$failed</code>. (The password is not actually changed.)</p>
+<p>Assume the user already passed your reset challenge (e.g. an emailed OTP). Enter a value <em>different from</em> the valid password to send <code>\$profile_reset / \$succeeded</code>, or the valid password to send <code>\$profile_reset / \$failed</code>. (The password is not actually changed.)</p>
 HTML;
 
 $scripts = <<<HTML

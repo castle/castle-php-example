@@ -22,7 +22,7 @@ function demos(): array
         ],
         'password_reset' => [
             'friendly_name' => 'password reset',
-            'blurb' => 'Record a password-reset event with the non-blocking log endpoint.',
+            'blurb' => 'Record a password-reset event ($profile_reset) with the non-blocking log endpoint.',
         ],
         'lists' => [
             'friendly_name' => 'lists',
@@ -198,7 +198,7 @@ function decide_password_reset(array $input, array $cfg): array
 
     // A new password that differs from the current one is a successful reset.
     $status = $password === $cfg['valid_password'] ? '$failed' : '$succeeded';
-    $type = '$password_reset';
+    $type = '$profile_reset';
 
     $payload = [
         'type' => $type,
